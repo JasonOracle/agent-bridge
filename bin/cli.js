@@ -89,7 +89,7 @@ console.log('📦 骨架文件已生成，请执行以下步骤开始协作：')
 console.log('----------------------------------------------------');
 console.log(' 1. 打开 \x1b[36mdocs/\x1b[0m 填写项目需求与任务拆解 (impl.md)。');
 console.log(' 2. 在终端运行 \x1b[33mnode watchdog.cjs\x1b[0m 启动状态机。');
-console.log(' 3. 将 \x1b[36mSTART_BUILDER.md\x1b[0m 发送给你的干活助手 (Builder)。');
-console.log(' 4. 将 \x1b[36mSTART_SUPERVISOR.md\x1b[0m 发送给你的审查助手 (Supervisor)。');
+console.log(' 3. 将 ”\x1b[36m了解START_BUILDER.md，并执行里面的任务\x1b[0m“ 发送给你的干活助手 (Builder)。');
+console.log(' 4. 将 ”\x1b[36m了解START_SUPERVISOR.md，并执行里面的任务\x1b[0m“ 发送给你的审查助手 (Supervisor)。');
 console.log('----------------------------------------------------\n');
 console.log('现在，您可以开始体验无缝的双端 AI 自动协作了！');
