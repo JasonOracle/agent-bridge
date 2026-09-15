@@ -1,9 +1,9 @@
 ```yaml
-status: PENDING_REVIEW
-task_id: T13
+status: PENDING_DEV
+task_id: T1
 round: 1
 retry: 0
-updated_at: 2026-09-15T16:36:00+08:00
+updated_at: 2026-09-15T16:00:00.000Z
 last_commit: null
 ```
 

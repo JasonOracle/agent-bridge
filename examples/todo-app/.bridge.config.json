@@ -1,0 +1,29 @@
+{
+  "supervisor": {
+    "mode": "watch",
+    "timeoutMin": 20
+  },
+  "builder": {
+    "mode": "watch",
+    "timeoutMin": 45
+  },
+  "docs": {
+    "prd": "docs/prd.md",
+    "tech": "docs/tech.md",
+    "impl": "docs/impl.md",
+    "test": "docs/test.md"
+  },
+  "roles": {
+    "supervisor": "agents/supervisor.md",
+    "builder": "agents/builder.md"
+  },
+  "checks": [
+    "npm test"
+  ],
+  "checkTimeoutMin": 5,
+  "pollIntervalSec": 1,
+  "maxRetryPerTask": 5,
+  "onMaxRetry": "human",
+  "onError": "retry",
+  "maxDiffKB": 64
+}
