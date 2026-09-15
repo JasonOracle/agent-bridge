@@ -18,14 +18,14 @@ Agent-Bridge 是一个极简的、基于纯文件状态机的多智能体协作�
 npx agent-bridge init
 ```
 
-执行后，你的目录下会生成一套桥接骨架文件，包括 `watchdog.js`、`prompts/` 循环指令、`agents/` 角色卡模板等。
+执行后，你的目录下会生成一套桥接骨架文件，包括 `watchdog.cjs`、`prompts/` 循环指令、`agents/` 角色卡模板等。
 
 ### 工作流 (4步)
 
 1. **写需求**：在生成的 `docs/prd.md` 和 `docs/impl.md` 中写下你的业务需求和拆解好的任务清单。
-2. **启动 Watchdog**：在终端运行 `node watchdog.js`。看门狗会开始监控状态并在后台流转状态机。
-3. **唤醒 Builder**：打开你的编程工具 A（例如 Cursor/Workbuddy），复制 `QUICK_START_BUILDER.md` 里的文本发给它，它就会开始写代码并提 PR。
-4. **唤醒 Supervisor**：打开你的编程工具 B（例如 Antigravity IDE），复制 `QUICK_START_SUPERVISOR.md` 发给它，它会在后台注册定时任务，开始严格 review 提交的代码。
+2. **启动 Watchdog**：在终端运行 `node watchdog.cjs`。看门狗会开始监控状态并在后台流转状态机。
+3. **唤醒 Builder**：打开你的编程工具 A（例如 Cursor/Workbuddy），复制 `START_BUILDER.md` 里的文本发给它，它就会开始写代码并提 PR。
+4. **唤醒 Supervisor**：打开你的编程工具 B（例如 Antigravity IDE），复制 `START_SUPERVISOR.md` 发给它，它会在后台注册定时任务，开始严格 review 提交的代码。
 
 然后，你就可以去喝杯咖啡，回来验收了。
 

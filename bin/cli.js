@@ -33,9 +33,9 @@ function copyRecursiveSync(src, dest) {
   }
 }
 
-// 检查是否已经存在（防止覆盖用户的 bridge.md 或 watchdog.js）
-if (fs.existsSync(path.join(targetDir, 'watchdog.js'))) {
-  console.error('\x1b[31m[错误] 当前目录已存在 watchdog.js，为防止覆盖您的数据，初始化中止。\x1b[0m');
+// 检查是否已经存在（防止覆盖用户的 bridge.md 或 watchdog.cjs）
+if (fs.existsSync(path.join(targetDir, 'watchdog.cjs'))) {
+  console.error('\x1b[31m[错误] 当前目录已存在 watchdog.cjs，为防止覆盖您的数据，初始化中止。\x1b[0m');
   process.exit(1);
 }
 
@@ -88,8 +88,8 @@ if (gitInitialized) {
 console.log('📦 骨架文件已生成，请执行以下步骤开始协作：');
 console.log('----------------------------------------------------');
 console.log(' 1. 打开 \x1b[36mdocs/\x1b[0m 填写项目需求与任务拆解 (impl.md)。');
-console.log(' 2. 在终端运行 \x1b[33mnode watchdog.js\x1b[0m 启动状态机。');
-console.log(' 3. 将 \x1b[36mAGENT_START.md\x1b[0m 发送给你的干活助手 (Builder)。');
-console.log(' 4. 将 \x1b[36mQUICK_START_SUPERVISOR.md\x1b[0m 发送给你的审查助手 (Supervisor)。');
+console.log(' 2. 在终端运行 \x1b[33mnode watchdog.cjs\x1b[0m 启动状态机。');
+console.log(' 3. 将 \x1b[36mSTART_BUILDER.md\x1b[0m 发送给你的干活助手 (Builder)。');
+console.log(' 4. 将 \x1b[36mSTART_SUPERVISOR.md\x1b[0m 发送给你的审查助手 (Supervisor)。');
 console.log('----------------------------------------------------\n');
 console.log('现在，您可以开始体验无缝的双端 AI 自动协作了！');
