@@ -1,0 +1,37 @@
+{
+  "supervisor": {
+    "mode": "watch",
+    "provider": "claude",
+    "model": "claude-sonnet-4-5",
+    "apiKey": "${ANTHROPIC_API_KEY}",
+    "maxTokens": 8192,
+    "timeoutMin": 20,
+    "cli": {
+      "command": "claude",
+      "args": ["-p", "{promptFile}"]
+    }
+  },
+  "builder": {
+    "mode": "watch",
+    "command": "claude",
+    "args": ["-p", "{promptFile}"],
+    "timeoutMin": 45
+  },
+  "docs": {
+    "prd": "docs/prd.md",
+    "tech": "docs/tech.md",
+    "impl": "docs/impl.md",
+    "test": "docs/test.md"
+  },
+  "roles": {
+    "supervisor": "agents/supervisor.md",
+    "builder": "agents/builder.md"
+  },
+  "checks": ["npm run build", "npm test"],
+  "checkTimeoutMin": 10,
+  "pollIntervalSec": 5,
+  "maxRetryPerTask": 5,
+  "onMaxRetry": "human",
+  "onError": "retry",
+  "maxDiffKB": 64
+}
