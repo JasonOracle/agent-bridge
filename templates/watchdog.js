@@ -106,15 +106,15 @@ function saveInternalState(state) {
 function getNextTask() {
   if (!fs.existsSync(IMPL_FILE)) return null;
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const match = impl.match(/-\s*\[\s\](?:.*?)(T\d+)/);
+  const match = impl.match(/^[\-\*\+]\s*\[\s\](?:.*?)(T\d+)/m);
   return match ? match[1] : null;
 }
 
 function markTaskCompleted(taskId) {
   if (!fs.existsSync(IMPL_FILE)) return;
   let impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const regex = new RegExp(`(-\\s*\\[\\s\\])(.*?${taskId})`);
-  impl = impl.replace(regex, (match, p1, p2) => match.replace(p1, '- [x]'));
+  const regex = new RegExp(`^([\\-\\*\+]\\s*\\[\\s\\])(.*?${taskId})`, 'm');
+  impl = impl.replace(regex, (match, p1, p2) => match.replace(p1, p1[0] + ' [x]'));
   fs.writeFileSync(IMPL_FILE, impl);
 }
 
@@ -129,7 +129,7 @@ function getCurrentCommit() {
 function getTaskDescription(taskId) {
   if (!fs.existsSync(IMPL_FILE)) return '';
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const regex = new RegExp(`-\\s*\\[[x ]\\].*?${taskId}.*?(?:\\n[^]*?)?(?=\\n-\\s*\\[[x ]\\]|$)`, 'g');
+  const regex = new RegExp(`^[\\-\\*\+]\\s*\\[[x ]\\].*?${taskId}.*?(?:\\n[^]*?)?(?=\\n^[\\-\\*\+]\\s*\\[[x ]\\]|$)`, 'gm');
   const match = regex.exec(impl);
   return match ? match[0].trim() : '';
 }
@@ -140,12 +140,13 @@ function assembleReviewRequest(state) {
   let diffOut = '';
   try {
     if (internal.lastApprovedCommit) {
-      diffOut = execSync(`git diff ${internal.lastApprovedCommit}..HEAD`).toString();
+      diffOut = execSync(`git diff ${internal.lastApprovedCommit}..HEAD`, { stdio: 'pipe' }).toString();
     } else {
-      diffOut = execSync('git log -p -1').toString();
+      diffOut = execSync('git log -p -1', { stdio: 'pipe' }).toString();
     }
   } catch (e) {
-    diffOut = '获取 diff 失败: ' + e.message;
+    const errText = e.stderr ? e.stderr.toString() : e.message;
+    diffOut = `[Watchdog 警告] 获取 diff 失败。原因：\n1. 可能是 Builder 忘记了执行 git commit，导致没有新的提交。\n2. 可能是当前为初始空仓库（没有 HEAD）。\n\n系统错误信息：\n${errText}`;
   }
 
   if (diffOut.length > config.maxDiffKB * 1024) {
@@ -182,8 +183,25 @@ function assembleReviewRequest(state) {
 
 function consumeVerdict(state) {
   if (!fs.existsSync(VERDICT_FILE)) return;
+  let rawContent = fs.readFileSync(VERDICT_FILE, 'utf8');
+  rawContent = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let verdict;
   try {
-    const verdict = JSON.parse(fs.readFileSync(VERDICT_FILE, 'utf8'));
+    verdict = JSON.parse(rawContent);
+  } catch (e) {
+    console.error('[Watchdog] 解析 Verdict 失败，已触发兜底熔断机制以阻断死循环:', e.message);
+    verdict = {
+      verdict: 'reject',
+      task_id: state.task_id,
+      round: state.round,
+      summary: 'Supervisor 返回的 verdict 格式严重损坏 (JSON解析失败)',
+      issues: [{ severity: 'blocker', desc: `JSON 格式错误：${e.message}。\n原文内容片段：${rawContent.slice(0, 100)}...` }],
+      next_instructions: '系统自动拦截：Supervisor 生成了非法的 JSON 文件。请 Supervisor 仔细检查你的输出格式，必须是纯 JSON，不要有任何多余的解释文本或 Markdown 标记。'
+    };
+  }
+
+  try {
     console.log(`[Watchdog] 收到 Verdict: ${verdict.verdict}`);
     
     const logFile = path.join(LOGS_DIR, `review-${state.task_id}-${state.round}.md`);
@@ -210,13 +228,14 @@ function consumeVerdict(state) {
         writeBridge({ status: 'NEEDS_HUMAN', error: '重试次数耗尽' });
         console.error('\n\x1b[31m[Watchdog Alert] 重试耗尽，进入 NEEDS_HUMAN，请人工介入！\x1b[0m\n');
       } else {
-        writeBridge({ status: 'PENDING_DEV', retry: state.retry + 1, round: state.round + 1 }, `## 本轮指令\n请修复打回的问题。\n\n## 上轮评审摘要\n${verdict.summary}\n\n具体问题：\n${verdict.issues.map(i => `- [${i.severity}] ${i.desc}`).join('\n')}\n\n修改指示：\n${verdict.next_instructions}`);
+        writeBridge({ status: 'PENDING_DEV', retry: state.retry + 1, round: state.round + 1 }, `## 本轮指令\n请修复打回的问题。\n\n## 上轮评审摘要\n${verdict.summary}\n\n具体问题：\n${(verdict.issues || []).map(i => `- [${i.severity}] ${i.desc}`).join('\n')}\n\n修改指示：\n${verdict.next_instructions}`);
       }
     }
     
     fs.unlinkSync(VERDICT_FILE);
   } catch (e) {
-    console.error('[Watchdog] 解析 Verdict 失败:', e.message);
+    console.error('[Watchdog] 处理 Verdict 状态流转时发生严重异常:', e.message);
+    fs.unlinkSync(VERDICT_FILE);
   }
 }
 
