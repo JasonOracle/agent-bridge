@@ -46,7 +46,7 @@ export async function runSupervisorCli(options: SupervisorCliOptions): Promise<V
     const res = await run([cliConfig.command, ...args], {
       cwd,
       timeoutMs,
-      shell: process.platform === 'win32',
+      shell: false,
     });
 
     if (res.timedOut) {

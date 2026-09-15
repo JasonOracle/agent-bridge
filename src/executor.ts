@@ -75,29 +75,25 @@ export async function run(
   const stdoutBuf = new TailBuffer(256 * 1024);
   const stderrBuf = new TailBuffer(256 * 1024);
 
+  const timeoutMs = options.timeoutMs;
+  const forceKillDelay = timeoutMs && timeoutMs < 2000 ? 500 : 2000;
+
   const execaOpts: ExecaOptions = {
     cwd: options.cwd ?? process.cwd(),
     shell: useShell,
     reject: false,
     env: options.env ?? process.env,
     buffer: false,
-    ...(options.timeoutMs && options.timeoutMs > 0
+    ...(timeoutMs && timeoutMs > 0
       ? {
-          timeout: options.timeoutMs,
+          timeout: timeoutMs,
           killSignal: 'SIGTERM',
-          forceKillAfterDelay: 5000,
+          forceKillAfterDelay: forceKillDelay,
         }
       : {}),
   };
 
-  let proc;
-  if (useShell && isWindows) {
-    // Windows 下启用 shell 时，若直接传 file 与 args 可能因空格或路径转义受限，整合成完整命令字符串
-    const fullCmd = [file, ...args].join(' ');
-    proc = execa(fullCmd, { ...execaOpts, shell: true });
-  } else {
-    proc = execa(file, args, execaOpts);
-  }
+  const proc = execa(file, args, execaOpts);
 
   proc.stdout?.on('data', (chunk) => stdoutBuf.append(chunk));
   proc.stderr?.on('data', (chunk) => stderrBuf.append(chunk));

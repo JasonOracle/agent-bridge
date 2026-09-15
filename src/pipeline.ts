@@ -20,6 +20,7 @@ import {
 } from './logger.js';
 import { Verdict } from './supervisor/types.js';
 import { getVerdict } from './supervisor/index.js';
+import { runBuilder } from './builder/index.js';
 
 export interface TaskProgressionResult {
   hasMoreTasks: boolean;
@@ -413,51 +414,23 @@ export async function runDevHalf(options: PipelineOptions): Promise<void> {
     return;
   }
 
-  // 3. 检查 builder 模式
-  if (options.config.builder.mode === 'watch') {
-    console.log('【Mode B 提示】：请确认 IDE 侧施工定时任务已注册（行动信号 = PENDING_DEV 或 IN_DEV）');
-    return;
-  }
+  // 3. 执行施工半循环
+  const builderRes = await runBuilder({
+    config: options.config,
+    prompt,
+    cwd,
+  });
 
-  // Mode A: spawn CLI
-  const promptFile = createPromptFile(prompt, 'builder-prompt', cwd);
-  try {
-    const rawArgs = options.config.builder.args ?? ['-p', '{promptFile}'];
-    const args = rawArgs.map((arg) => {
-      if (arg === '{promptFile}') return promptFile;
-      if (arg === '{prompt}') return prompt;
-      return arg;
-    });
-
-    const command = options.config.builder.command!;
-    const timeoutMs = options.config.builder.timeoutMin * 60 * 1000;
-    const res = await run([command, ...args], {
-      cwd,
-      timeoutMs,
-      shell: process.platform === 'win32',
-    });
-
-    if (res.timedOut) {
-      saveDevErrorLog(
-        {
-          taskId: state.task_id,
-          round: state.round,
-          error: `施工 CLI 执行超时（>${options.config.builder.timeoutMin}m）被强制终止`,
-        },
-        cwd
-      );
-      writeBridge(
-        path.join(cwd, bridgeFile),
-        {
-          ...state,
-          status: 'ERROR',
-          updated_at: new Date().toISOString(),
-          error: '施工 CLI 超时',
-        },
-        freeZone
-      );
-    }
-  } finally {
-    removePromptFile(promptFile);
+  if (!builderRes.success) {
+    writeBridge(
+      path.join(cwd, bridgeFile),
+      {
+        ...state,
+        status: 'ERROR',
+        updated_at: new Date().toISOString(),
+        error: builderRes.error ?? '施工半循环执行失败',
+      },
+      freeZone
+    );
   }
 }

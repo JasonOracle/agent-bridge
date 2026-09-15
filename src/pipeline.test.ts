@@ -113,7 +113,18 @@ describe('流水线编排模块 (src/pipeline.ts)', () => {
       staleThresholdMin: 0,
     };
 
-    await runReviewHalf({ config, cwd: tmpDir });
+    await runReviewHalf({
+      config,
+      cwd: tmpDir,
+      mockVerdict: {
+        verdict: 'approve',
+        task_id: 'T1',
+        round: 1,
+        summary: '单测模拟验收通过',
+        issues: [],
+        next_instructions: '',
+      },
+    });
 
     // 验证 bridge.md 状态已前进至 PENDING_DEV 且 task_id 为 T2
     const bridgeResult = readBridge(bridgeFile);
