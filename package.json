@@ -1,0 +1,24 @@
+{
+  "name": "agent-bridge",
+  "version": "1.0.0",
+  "description": "A zero-dependency framework for autonomous dual-agent collaboration.",
+  "main": "index.js",
+  "bin": {
+    "agent-bridge": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JasonOracle/agent-bridge.git"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "collaboration",
+    "automation"
+  ],
+  "author": "",
+  "license": "ISC"
+}
