@@ -19,6 +19,7 @@ import {
   saveDevErrorLog,
 } from './logger.js';
 import { Verdict } from './supervisor/types.js';
+import { getVerdict } from './supervisor/index.js';
 
 export interface TaskProgressionResult {
   hasMoreTasks: boolean;
@@ -244,15 +245,15 @@ export async function runReviewHalf(options: PipelineOptions): Promise<void> {
     freeZone
   );
 
-  // 6. 获取裁决结果（T7 阶段默认使用 mockVerdict 或自动 approve 走通全流程）
-  const verdict: Verdict = options.mockVerdict ?? {
-    verdict: 'approve',
-    task_id: state.task_id,
-    round: state.round,
-    summary: '自动化校验通过，本轮验收合格',
-    issues: [],
-    next_instructions: '',
-  };
+  // 6. 获取裁决结果
+  const verdict: Verdict = options.mockVerdict ?? (await getVerdict({
+    config: options.config,
+    requestMd: reviewRequestMd,
+    requestMdPath: '.bridge/review-request.md',
+    expectedTaskId: state.task_id,
+    currentRound: state.round,
+    cwd,
+  }));
 
   // 7. 回写裁决
   if (verdict.verdict === 'approve') {
