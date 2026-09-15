@@ -46,7 +46,7 @@ git commit -m "[bridge] T{task_id}: {一句话描述本次实现内容}"
 ```
 
 ### 2.4 提交后
-**立即停止，不做任何额外操作**。等待 Watchdog 在 `bridge.md` 写入下一轮 `PENDING_DEV` 后，再开始下一任务。不得自行推测下一任务内容。
+**必须立即在终端执行 `node agent-wait.cjs` 挂起自身**，等待 Watchdog 在 `bridge.md` 写入下一轮 `PENDING_DEV` 将你唤醒后再开始下一任务。不得自行推测下一任务内容，更严禁直接结束对话退出。
 
 ---
 
