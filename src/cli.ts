@@ -27,7 +27,25 @@ program
   .description('生成项目模板与目录骨架')
   .option('-f, --force', '强制覆盖已存在文件', false)
   .action(async (options) => {
-    console.log('init 命令执行 (将在 T12 完整化):', options);
+    try {
+      const { runInit } = await import('./init.js');
+      const res = runInit({ force: options.force });
+      console.log('=============== 初始化完成 ===============');
+      console.log(`新建/更新文件 (${res.created.length}):`);
+      for (const f of res.created) {
+        console.log(`  + ${f}`);
+      }
+      if (res.skipped.length > 0) {
+        console.log(`跳过已存在文件 (${res.skipped.length}, 加 --force 可覆盖):`);
+        for (const f of res.skipped) {
+          console.log(`  - ${f}`);
+        }
+      }
+      console.log('==========================================');
+    } catch (err: any) {
+      console.error('[init 失败]', err?.message ?? err);
+      process.exit(1);
+    }
   });
 
 program
