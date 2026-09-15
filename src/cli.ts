@@ -73,29 +73,18 @@ program
   .option('-c, --config <path>', '指定配置文件路径', '.bridge.config.json')
   .action(async (options) => {
     try {
-      const config = loadConfig(options.config);
-      const { state } = readBridge();
+      const { getStatus } = await import('./commands.js');
+      const res = getStatus(options.config);
       console.log('================= 状态总览 =================');
-      console.log(`当前状态: ${state.status}`);
-      console.log(`当前任务: ${state.task_id ?? '无'}`);
-      console.log(`轮次: ${state.round}, 重试: ${state.retry}`);
-      console.log(`更新时间: ${state.updated_at}`);
-      console.log(`最新提交: ${state.last_commit ?? '无'}`);
-
-      const implPath = path.resolve(process.cwd(), config.docs.impl);
-      if (fs.existsSync(implPath)) {
-        const implContent = fs.readFileSync(implPath, 'utf-8');
-        const total = (implContent.match(/^\s*-\s*\[[ x\-]\]\s*T\d+:/gm) || []).length;
-        const done = (implContent.match(/^\s*-\s*\[x\]\s*T\d+:/gm) || []).length;
-        const skipped = (implContent.match(/^\s*-\s*\[\-\]\s*T\d+:/gm) || []).length;
-        console.log(`\n任务进度: ${done}/${total} (已跳过: ${skipped})`);
-      }
-
-      const logsDir = getLogsDirPath();
-      if (fs.existsSync(logsDir)) {
-        const logFiles = fs.readdirSync(logsDir).filter((f) => f.endsWith('.md')).reverse().slice(0, 5);
-        console.log(`\n最近审计日志 (Top ${logFiles.length}):`);
-        for (const log of logFiles) {
+      console.log(`当前状态: ${res.state.status}`);
+      console.log(`当前任务: ${res.state.task_id ?? '无'}`);
+      console.log(`轮次: ${res.state.round}, 重试: ${res.state.retry}`);
+      console.log(`更新时间: ${res.state.updated_at}`);
+      console.log(`最新提交: ${res.state.last_commit ?? '无'}`);
+      console.log(`\n任务进度: ${res.progress.done}/${res.progress.total} (已跳过: ${res.progress.skipped})`);
+      if (res.recentLogs.length > 0) {
+        console.log(`\n最近审计日志 (Top ${res.recentLogs.length}):`);
+        for (const log of res.recentLogs) {
           console.log(`  - ${log}`);
         }
       }
@@ -113,48 +102,14 @@ program
   .option('--skip', '标记跳过当前任务', false)
   .action(async (options) => {
     try {
-      const config = loadConfig(options.config);
-      const { state, freeZone } = readBridge();
-      if (state.status !== 'NEEDS_HUMAN') {
-        console.warn(`[提示] 当前状态为 ${state.status}，非 NEEDS_HUMAN，无需 resolve。`);
-        return;
-      }
-
-      if (options.skip && state.task_id) {
-        console.log(`[resolve] 标记跳过任务 ${state.task_id}...`);
-        const res = markTaskSkippedInImpl(path.resolve(process.cwd(), config.docs.impl), state.task_id);
-        if (res.hasMoreTasks && res.nextTaskId) {
-          writeBridge('bridge.md', {
-            ...state,
-            status: 'PENDING_DEV',
-            task_id: res.nextTaskId,
-            round: state.round + 1,
-            retry: 0,
-            updated_at: new Date().toISOString(),
-          }, freeZone);
-          console.log(`[resolve] 已前进至新任务 ${res.nextTaskId}`);
-        } else {
-          writeBridge('bridge.md', {
-            ...state,
-            status: 'COMPLETED',
-            task_id: null,
-            round: state.round + 1,
-            retry: 0,
-            updated_at: new Date().toISOString(),
-          }, freeZone);
-          console.log('[resolve] 所有任务已完成。');
-        }
-      } else {
-        console.log(`[resolve] 恢复任务 ${state.task_id} 为 PENDING_DEV (retry 清零)...`);
-        writeBridge('bridge.md', {
-          ...state,
-          status: 'PENDING_DEV',
-          retry: 0,
-          updated_at: new Date().toISOString(),
-        }, freeZone);
-      }
-    } catch (err) {
-      console.error('[resolve 失败]', err);
+      const { resolveNeedsHuman } = await import('./commands.js');
+      const nextState = resolveNeedsHuman({
+        configPath: options.config,
+        skip: options.skip,
+      });
+      console.log(`[resolve 成功] 状态已更新为 ${nextState.status}, 任务: ${nextState.task_id ?? '全部完成'}`);
+    } catch (err: any) {
+      console.error('[resolve 失败]', err?.message ?? err);
       process.exit(1);
     }
   });
