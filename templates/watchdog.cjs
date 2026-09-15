@@ -95,27 +95,78 @@ function getInternalState() {
   try {
     return JSON.parse(fs.readFileSync(INTERNAL_STATE_FILE, 'utf8'));
   } catch {
-    return { lastApprovedCommit: null };
+    return { lastApprovedCommit: null, completedTasks: [] };
   }
 }
 
 function saveInternalState(state) {
+  if (!state.completedTasks) state.completedTasks = [];
   fs.writeFileSync(INTERNAL_STATE_FILE, JSON.stringify(state, null, 2));
 }
 
 function getNextTask() {
   if (!fs.existsSync(IMPL_FILE)) return null;
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const match = impl.match(/^[\-\*\+]\s*\[\s\](?:.*?)(T\d+)/m);
-  return match ? match[1] : null;
+  const internal = getInternalState();
+  const completed = internal.completedTasks || [];
+
+  // Strategy 1: Explicit T\d+
+  const explicitRegex = /^(?:#{1,6}\s+|[\-\*\+]\s+|\d+\.\s+).*?(T\d+)/gm;
+  const explicitMatches = [...impl.matchAll(explicitRegex)];
+  if (explicitMatches.length > 0) {
+    for (const m of explicitMatches) {
+      const taskId = m[1];
+      const isCompleted = m[0].includes('[x]') || m[0].includes('[X]') || m[0].includes('✅') || completed.includes(taskId);
+      if (!isCompleted) return taskId;
+    }
+    return null;
+  }
+  
+  // Strategy 2: Headers (H2 or H3) as tasks (T1, T2, ...)
+  const headers = [...impl.matchAll(/^#{2,3}\s+(.*)/gm)];
+  if (headers.length > 0) {
+    for (let i = 0; i < headers.length; i++) {
+      const taskId = `T${i + 1}`;
+      const isCompleted = headers[i][0].includes('[x]') || headers[i][0].includes('✅') || completed.includes(taskId);
+      if (!isCompleted) return taskId;
+    }
+    return null;
+  }
+  
+  return null;
 }
 
 function markTaskCompleted(taskId) {
+  const internal = getInternalState();
+  if (!internal.completedTasks) internal.completedTasks = [];
+  if (!internal.completedTasks.includes(taskId)) {
+    internal.completedTasks.push(taskId);
+  }
+  saveInternalState(internal);
+
   if (!fs.existsSync(IMPL_FILE)) return;
   let impl = fs.readFileSync(IMPL_FILE, 'utf8');
+  
+  // Try explicit checkbox replacement
   const regex = new RegExp(`^([\\-\\*\+]\\s*\\[\\s\\])(.*?${taskId})`, 'm');
-  impl = impl.replace(regex, (match, p1, p2) => match.replace(p1, p1[0] + ' [x]'));
-  fs.writeFileSync(IMPL_FILE, impl);
+  if (regex.test(impl)) {
+    impl = impl.replace(regex, (match, p1, p2) => match.replace(p1, p1[0] + ' [x]'));
+    fs.writeFileSync(IMPL_FILE, impl);
+    return;
+  }
+  
+  // Implicit via headers
+  const num = parseInt(taskId.slice(1), 10);
+  if (!isNaN(num)) {
+    const headers = [...impl.matchAll(/^#{2,3}\s+(.*)/gm)];
+    if (headers.length >= num) {
+      const m = headers[num - 1];
+      if (!m[0].includes('✅')) {
+        impl = impl.slice(0, m.index) + m[0] + ' ✅' + impl.slice(m.index + m[0].length);
+        fs.writeFileSync(IMPL_FILE, impl);
+      }
+    }
+  }
 }
 
 function getCurrentCommit() {
@@ -129,9 +180,24 @@ function getCurrentCommit() {
 function getTaskDescription(taskId) {
   if (!fs.existsSync(IMPL_FILE)) return '';
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const regex = new RegExp(`^[\\-\\*\+]\\s*\\[[x ]\\].*?${taskId}.*?(?:\\n[^]*?)?(?=\\n^[\\-\\*\+]\\s*\\[[x ]\\]|$)`, 'gm');
-  const match = regex.exec(impl);
-  return match ? match[0].trim() : '';
+  
+  // First, check explicit
+  const explicitRegex = new RegExp(`^(?:#{1,6}\\s+|[\\-\\*\+]\\s+|\\d+\\.\\s+).*?${taskId}.*?(?:\\n[^]*?)?(?=\\n^(?:#{1,6}\\s+|[\\-\\*\+]\\s+|\\d+\\.\\s+)|$)`, 'gm');
+  const match = explicitRegex.exec(impl);
+  if (match) return match[0].trim();
+  
+  // If no explicit, check if it's implicitly mapped by headers
+  const num = parseInt(taskId.slice(1), 10);
+  if (!isNaN(num)) {
+    const headers = [...impl.matchAll(/^#{2,3}\s+(.*)/gm)];
+    if (headers.length >= num) {
+      const startIdx = headers[num - 1].index;
+      const endIdx = num < headers.length ? headers[num].index : impl.length;
+      return impl.slice(startIdx, endIdx).trim();
+    }
+  }
+  
+  return '';
 }
 
 function assembleReviewRequest(state) {
