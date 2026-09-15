@@ -106,14 +106,15 @@ function saveInternalState(state) {
 function getNextTask() {
   if (!fs.existsSync(IMPL_FILE)) return null;
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const match = impl.match(/- \[\s\] \*\*(T\d+)\*\*/);
+  const match = impl.match(/-\s*\[\s\](?:.*?)(T\d+)/);
   return match ? match[1] : null;
 }
 
 function markTaskCompleted(taskId) {
   if (!fs.existsSync(IMPL_FILE)) return;
   let impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  impl = impl.replace(new RegExp(`- \\s*\\[\\s\\]\\s*\\*\\*${taskId}\\*\\*`), `- [x] **${taskId}**`);
+  const regex = new RegExp(`(-\\s*\\[\\s\\])(.*?${taskId})`);
+  impl = impl.replace(regex, (match, p1, p2) => match.replace(p1, '- [x]'));
   fs.writeFileSync(IMPL_FILE, impl);
 }
 
@@ -128,7 +129,7 @@ function getCurrentCommit() {
 function getTaskDescription(taskId) {
   if (!fs.existsSync(IMPL_FILE)) return '';
   const impl = fs.readFileSync(IMPL_FILE, 'utf8');
-  const regex = new RegExp(`- \\[[x ]\\] \\*\\*${taskId}\\*\\*:([^]*?)(?=\\n- \\[[x ]\\] \\*\\*T|$)`, 'g');
+  const regex = new RegExp(`-\\s*\\[[x ]\\].*?${taskId}.*?(?:\\n[^]*?)?(?=\\n-\\s*\\[[x ]\\]|$)`, 'g');
   const match = regex.exec(impl);
   return match ? match[0].trim() : '';
 }
